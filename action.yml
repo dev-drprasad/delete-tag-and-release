@@ -1,5 +1,11 @@
 name: Delete tag and release
 description: delete tag and release
+author: "dev-drprasad"
+
+branding:
+  color: "red"
+  icon: "delete"
+
 inputs:
   tag_name:
     description: tag name
