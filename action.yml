@@ -1,0 +1,14 @@
+name: Delete tag and release
+description: delete tag and release
+inputs:
+  tag_name:
+    description: tag name
+    required: true
+  delete_release:
+    description: whether to delete release or not
+    required: false
+    default: true
+
+runs:
+  using: "node12"
+  main: "index.js"

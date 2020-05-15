@@ -1,0 +1,12 @@
+# GitHub Action: Delete tag and release
+
+Add following step to the end of your workflow:
+
+```yaml
+- uses: dev-dprasad/delete-tag-and-release@v0.1.0
+  with:
+    delete_release: true # default: fa;se
+    tag_name: v0.1.0
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
