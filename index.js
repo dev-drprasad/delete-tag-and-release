@@ -77,7 +77,6 @@ async function run() {
 
   if (releaseIds.length === 0) {
     console.error(`😕  no releases found associated to tag "${tagName}"`);
-    process.exitCode = 1;
     return;
   }
   console.log(`🍻  found ${releaseIds.length} releases to delete`);
