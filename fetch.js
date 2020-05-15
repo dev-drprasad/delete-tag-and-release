@@ -1,7 +1,7 @@
 const url = require("url");
 const https = require("https");
 
-function fetch(options, data) {
+module.exports = function fetch(options, data) {
   return new Promise(function (resolve, reject) {
     const req = https.request(options, function (res) {
       let data = "";
@@ -34,4 +34,4 @@ function fetch(options, data) {
     }
     req.end();
   });
-}
+};

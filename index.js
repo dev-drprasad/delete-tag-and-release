@@ -1,19 +1,25 @@
 const fetch = require("./fetch");
 
 if (!process.env.GITHUB_TOKEN) {
-  return console.error("🔴 no GITHUB_TOKEN found. pass `GITHUB_TOKEN` as env");
+  console.error("🔴 no GITHUB_TOKEN found. pass `GITHUB_TOKEN` as env");
+  process.exitCode = 1;
+  return;
 }
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 if (!process.env.GITHUB_REPOSITORY) {
-  return console.error(
+  console.error(
     "🔴 no GITHUB_REPOSITORY found. pass `GITHUB_REPOSITORY` as env"
   );
+  process.exitCode = 1;
+  return;
 }
 const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
 
 if (!process.env.INPUT_TAG_NAME) {
-  return console.error("🌶  no tag name found. use `tag_name` to pass value");
+  console.error("🌶  no tag name found. use `tag_name` to pass value");
+  process.exitCode = 1;
+  return;
 }
 const tagName = process.env.INPUT_TAG_NAME;
 
@@ -30,7 +36,7 @@ const commonOpts = {
   },
 };
 
-console.log(`🏷 given tag is "${tagName}"`);
+console.log(`🏷  given tag is "${tagName}"`);
 
 const tagRef = `refs/tags/${tagName}`;
 
@@ -45,6 +51,7 @@ async function run() {
     console.log(`✅  ${tagName} deleted successfully!`);
   } catch (error) {
     console.error(`🌶  failed to delete ref ${tagRef} <- ${error.message}`);
+    process.exitCode = 1;
     return;
   }
 
@@ -64,13 +71,14 @@ async function run() {
       .map(({ id }) => id);
   } catch (error) {
     console.error(`🌶  failed to get list of releases <- ${error.message}`);
+    process.exitCode = 1;
     return;
   }
 
   if (releaseIds.length === 0) {
-    return console.error(
-      `😕  no releases found associated to tag "${tagName}"`
-    );
+    console.error(`😕  no releases found associated to tag "${tagName}"`);
+    process.exitCode = 1;
+    return;
   }
   console.log(`🍻  found ${releaseIds.length} releases to delete`);
 
@@ -93,9 +101,12 @@ async function run() {
     }
   }
 
-  if (!hasError) {
-    console.log(`👍🏼  all releases deleted successfully!`);
+  if (hasError) {
+    process.exitCode = 1;
+    return;
   }
+
+  console.log(`👍🏼  all releases deleted successfully!`);
 }
 
 run();
