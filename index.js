@@ -51,7 +51,11 @@ async function run() {
     console.log(`✅  ${tagName} deleted successfully!`);
   } catch (error) {
     console.error(`🌶  failed to delete ref ${tagRef} <- ${error.message}`);
-    process.exitCode = 1;
+    if (error.message === "Reference does not exist") {
+      console.error("😕  Proceeding anyway, because tag not existing is the goal");
+    } else {
+      process.exitCode = 1;
+    }
     return;
   }
 
