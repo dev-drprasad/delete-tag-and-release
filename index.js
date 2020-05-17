@@ -59,12 +59,12 @@ async function deleteTag() {
 async function deleteReleases() {
   let releaseIds = [];
   try {
-    const res = await fetch({
+    const data = await fetch({
       ...commonOpts,
-      url: `/repos/${owner}/${repo}/releases`,
+      path: `/repos/${owner}/${repo}/releases`,
       method: "GET",
     });
-    releaseIds = (res.data || [])
+    releaseIds = (data || [])
       .filter(({ tag_name, draft }) => tag_name === tagName && draft === false)
       .map(({ id }) => id);
   } catch (error) {
@@ -86,7 +86,7 @@ async function deleteReleases() {
     try {
       const _ = await fetch({
         ...commonOpts,
-        url: `/repos/${owner}/${repo}/releases/${releaseId}`,
+        path: `/repos/${owner}/${repo}/releases/${releaseId}`,
         method: "DELETE",
       });
     } catch (error) {
