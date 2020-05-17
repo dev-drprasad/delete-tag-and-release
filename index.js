@@ -40,7 +40,7 @@ console.log(`🏷  given tag is "${tagName}"`);
 
 const tagRef = `refs/tags/${tagName}`;
 
-async function run() {
+async function deleteTag() {
   try {
     const _ = await fetch({
       ...commonOpts,
@@ -54,11 +54,9 @@ async function run() {
     process.exitCode = 1;
     return;
   }
+}
 
-  if (!shouldDeleteRelease) {
-    return;
-  }
-
+async function deleteReleases() {
   let releaseIds = [];
   try {
     const res = await fetch({
@@ -108,4 +106,7 @@ async function run() {
   console.log(`👍🏼  all releases deleted successfully!`);
 }
 
-run();
+if (shouldDeleteRelease) {
+  deleteReleases();
+}
+deleteTag();
