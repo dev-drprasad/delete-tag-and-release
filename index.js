@@ -106,7 +106,11 @@ async function deleteReleases() {
   console.log(`👍🏼  all releases deleted successfully!`);
 }
 
-if (shouldDeleteRelease) {
-  deleteReleases();
+async function run() {	
+  if (shouldDeleteRelease) {
+    await deleteReleases();
+  }
+  await deleteTag();
 }
-deleteTag();
+
+run();
