@@ -48,11 +48,13 @@ async function deleteTag() {
       method: "DELETE",
     });
 
-    console.log(`✅  ${tagName} deleted successfully!`);
+    console.log(`✅  tag "${tagName}" deleted successfully!`);
   } catch (error) {
-    console.error(`🌶  failed to delete ref ${tagRef} <- ${error.message}`);
+    console.error(`🌶  failed to delete ref "${tagRef}" <- ${error.message}`);
     if (error.message === "Reference does not exist") {
-      console.error("😕  Proceeding anyway, because tag not existing is the goal");
+      console.error(
+        "😕  Proceeding anyway, because tag not existing is the goal"
+      );
     } else {
       process.exitCode = 1;
     }
@@ -110,7 +112,7 @@ async function deleteReleases() {
   console.log(`👍🏼  all releases deleted successfully!`);
 }
 
-async function run() {	
+async function run() {
   if (shouldDeleteRelease) {
     await deleteReleases();
   }
