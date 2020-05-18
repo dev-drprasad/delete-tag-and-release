@@ -40,7 +40,7 @@ console.log(`🏷  given tag is "${tagName}"`);
 
 const tagRef = `refs/tags/${tagName}`;
 
-async function run() {
+async function deleteTag() {
   try {
     const _ = await fetch({
       ...commonOpts,
@@ -58,19 +58,17 @@ async function run() {
     }
     return;
   }
+}
 
-  if (!shouldDeleteRelease) {
-    return;
-  }
-
+async function deleteReleases() {
   let releaseIds = [];
   try {
-    const res = await fetch({
+    const data = await fetch({
       ...commonOpts,
-      url: `/repos/${owner}/${repo}/releases`,
+      path: `/repos/${owner}/${repo}/releases`,
       method: "GET",
     });
-    releaseIds = (res.data || [])
+    releaseIds = (data || [])
       .filter(({ tag_name, draft }) => tag_name === tagName && draft === false)
       .map(({ id }) => id);
   } catch (error) {
@@ -92,7 +90,7 @@ async function run() {
     try {
       const _ = await fetch({
         ...commonOpts,
-        url: `/repos/${owner}/${repo}/releases/${releaseId}`,
+        path: `/repos/${owner}/${repo}/releases/${releaseId}`,
         method: "DELETE",
       });
     } catch (error) {
@@ -110,6 +108,13 @@ async function run() {
   }
 
   console.log(`👍🏼  all releases deleted successfully!`);
+}
+
+async function run() {	
+  if (shouldDeleteRelease) {
+    await deleteReleases();
+  }
+  await deleteTag();
 }
 
 run();
