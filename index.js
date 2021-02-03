@@ -23,7 +23,7 @@ if (!process.env.INPUT_TAG_NAME) {
 }
 const tagName = process.env.INPUT_TAG_NAME;
 
-const shouldDeleteRelease = !!process.env.INPUT_DELETE_RELEASE;
+const shouldDeleteRelease = process.env.INPUT_DELETE_RELEASE === "true";
 
 const commonOpts = {
   host: "api.github.com",
