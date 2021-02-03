@@ -1,4 +1,3 @@
-const url = require("url");
 const https = require("https");
 
 module.exports = function fetch(options, data) {
