@@ -14,6 +14,7 @@ if (!process.env.GITHUB_REPOSITORY) {
   process.exitCode = 1;
   return;
 }
+console.log(`📕 given repo is "${process.env.GITHUB_REPOSITORY}"`)
 const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
 
 if (!process.env.INPUT_TAG_NAME) {
