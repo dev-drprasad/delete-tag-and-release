@@ -7,15 +7,18 @@ if (!process.env.GITHUB_TOKEN) {
 }
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-if (!process.env.GITHUB_REPOSITORY) {
-  console.error(
-    "🔴 no GITHUB_REPOSITORY found. pass `GITHUB_REPOSITORY` as env"
-  );
+let owner, repo;
+
+if (process.env.INPUT_OWNER && process.env.INPUT_REPO) {
+  [owner, repo] = [process.env.INPUT_OWNER, process.env.INPUT_REPO];
+} else if (process.env.GITHUB_REPOSITORY) {
+  [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+} else {
+  console.error("🔴 no GITHUB_REPOSITORY found. pass `GITHUB_REPOSITORY` as env or owner/repo as inputs");
   process.exitCode = 1;
   return;
 }
-console.log(`📕 given repo is "${process.env.GITHUB_REPOSITORY}"`)
-const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+console.log(`📕  given repo is "${owner}/${repo}"`);
 
 if (!process.env.INPUT_TAG_NAME) {
   console.error("🌶  no tag name found. use `tag_name` to pass value");

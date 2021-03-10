@@ -14,6 +14,12 @@ inputs:
     description: whether to delete release or not
     required: false
     default: true
+  owner:
+    description: owner of the target repository
+    required: false
+  repo:
+    description: target repository
+    required: false
 
 runs:
   using: "node12"
