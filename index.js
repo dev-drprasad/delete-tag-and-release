@@ -9,8 +9,8 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 let owner, repo;
 
-if (process.env.INPUT_OWNER && process.env.INPUT_REPO) {
-  [owner, repo] = [process.env.INPUT_OWNER, process.env.INPUT_REPO];
+if (process.env.INPUT_REPO) {
+  [owner, repo] = process.env.INPUT_REPO.split("/");
 } else if (process.env.GITHUB_REPOSITORY) {
   [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
 } else {

@@ -14,11 +14,8 @@ inputs:
     description: whether to delete release or not
     required: false
     default: true
-  owner:
-    description: owner of the target repository
-    required: false
   repo:
-    description: target repository
+    description: target repository as <owner>/<repository>
     required: false
 
 runs:
