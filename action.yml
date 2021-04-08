@@ -14,6 +14,10 @@ inputs:
     description: whether to delete release or not
     required: false
     default: true
+  delete_draft_release:
+    description: whether to also delete draft releases
+    required: false
+    default: false
   repo:
     description: target repository as <owner>/<repository>
     required: false
