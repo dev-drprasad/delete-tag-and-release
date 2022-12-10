@@ -28,6 +28,7 @@ if (!process.env.INPUT_TAG_NAME) {
 const tagName = process.env.INPUT_TAG_NAME;
 
 const shouldDeleteRelease = process.env.INPUT_DELETE_RELEASE === "true";
+const shouldDeleteDraftRelease = process.env.INPUT_DELETE_DRAFT_RELEASE === "true";
 
 const commonOpts = {
   host: "api.github.com",
@@ -74,7 +75,7 @@ async function deleteReleases() {
       method: "GET",
     });
     releaseIds = (data || [])
-      .filter(({ tag_name, draft }) => tag_name === tagName && draft === false)
+      .filter(({ tag_name, draft }) => tag_name === tagName && shouldDeleteDraftRelease ? true : (draft === false))
       .map(({ id }) => id);
   } catch (error) {
     console.error(`🌶  failed to get list of releases <- ${error.message}`);
