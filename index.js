@@ -66,6 +66,8 @@ async function deleteTag() {
   }
 }
 
+const releaseName = process.env.INPUT_RELEASE_NAME;
+
 async function deleteReleases() {
   let releaseIds = [];
   try {
@@ -90,6 +92,21 @@ async function deleteReleases() {
   console.log(`🍻  found ${releaseIds.length} releases to delete`);
 
   let hasError = false;
+
+  if (process.env.INPUT_RELEASE_NAME) {
+    try {
+      const _ = await fetch({
+        ...commonOpts,
+        path: `/repos/${owner}/${repo}/releases/${releaseName}`,
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error(`🌶  failed to delete release with id "${releaseName}"  <- ${error.message}`);
+      hasError = true;
+    }
+  }
+
+  if (!process.env.INPUT_RELEASE_NAME) {
   for (let i = 0; i < releaseIds.length; i++) {
     const releaseId = releaseIds[i];
 
@@ -112,6 +129,9 @@ async function deleteReleases() {
   }
 
   console.log(`👍🏼  all releases deleted successfully!`);
+}
+
+  
 }
 
 async function run() {

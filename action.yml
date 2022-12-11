@@ -21,6 +21,9 @@ inputs:
   repo:
     description: target repository as <owner>/<repository>
     required: false
+  release_name:
+    description: target specific release ID
+    required: false
 
 runs:
   using: "node16"
