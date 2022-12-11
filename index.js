@@ -104,6 +104,13 @@ async function deleteReleases() {
       console.error(`🌶  failed to delete release with id "${releaseName}"  <- ${error.message}`);
       hasError = true;
     }
+
+    if (hasError) {
+      process.exitCode = 1;
+      return;
+    }
+
+    console.log(`👍🏼  ${releaseName} deleted successfully!`);
   }
 
   if (!process.env.INPUT_RELEASE_NAME) {
