@@ -1,6 +1,6 @@
 {
   "name": "delete-tag-and-release",
-  "version": "v0.1.1",
+  "version": "v0.2.0",
   "main": "index.js",
   "repository": {
     "type": "git",
