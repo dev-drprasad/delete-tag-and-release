@@ -19,5 +19,5 @@ inputs:
     required: false
 
 runs:
-  using: "node16"
-  main: "index.js"
+  using: 'node16'
+  main: 'index.js'
