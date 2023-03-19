@@ -3,7 +3,7 @@
 Add following step to your workflow:
 
 ```yaml
-- uses: dev-drprasad/delete-tag-and-release@v0.2.1
+- uses: dev-drprasad/delete-tag-and-release@v0.2
   with:
     tag_name: v0.1.0 #(required) tag name to delete 
     delete_release: true #(optional) default: true 
