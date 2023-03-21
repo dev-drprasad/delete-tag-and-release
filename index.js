@@ -126,6 +126,25 @@ function getRepo() {
   }
 }
 
+function getGitHubToken() {
+  const tokenFromEnv = process.env.GITHUB_TOKEN
+  const inputToken = core.getInput('github_token');
+
+  if (inputToken) {
+    return inputToken;
+  }
+
+  if (tokenFromEnv) {
+    log('⚠️',
+      'Providing the GitHub token from the environment variable is deprecated. Provide it as an input with the name "github_token" instead.',
+      'warn');
+    return tokenFromEnv;
+  }
+
+  log('🌶', 'A valid GitHub token was not provided. Provide it as an input with the name "github_token"', 'error');
+  process.exit(1)
+}
+
 /**
  * Gets the inputs for this action.
  *
@@ -137,7 +156,7 @@ function getRepo() {
  */
 async function getInputs() {
   const tagName = core.getInput('tag_name', {required: true})
-  const githubToken = core.getInput('github_token', {required: true});
+  const githubToken = getGitHubToken();
   const shouldDeleteReleases = core.getBooleanInput('delete_release')
   const repo = getRepo();
   const octokit = github.getOctokit(githubToken, {});
