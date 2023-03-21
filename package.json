@@ -1,14 +1,19 @@
 {
   "name": "delete-tag-and-release",
   "version": "v0.2.1",
-  "main": "index.js",
+  "main": "main.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dev-drprasad/delete-tag-and-release"
   },
   "keywords": [],
+  "scripts": {
+    "test": "jest index.spec.js"
+  },
   "author": "REDDY PRASAD",
   "license": "ISC",
   "homepage": "https://github.com/dev-drprasad/delete-tag-and-release",
-  "dependencies": {}
+  "devDependencies": {
+    "jest": "^29.3.1"
+  }
 }
