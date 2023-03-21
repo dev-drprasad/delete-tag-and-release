@@ -38,16 +38,17 @@ function log(header, message, level = 'default') {
  * @return {Promise<void>}
  */
 async function deleteTag(octokit, {owner, repo}, tagName) {
+  const ref = createTagRef(tagName)
   try {
     await octokit.rest.git.deleteRef({
       owner,
       repo,
-      ref: createTagRef(tagName)
+      ref
     })
 
     log("✅", `"${tagName}" deleted successfully!`)
   } catch (error) {
-    log("🌶", `failed to delete ref "${tagRef}" <- ${error.message}`, 'error')
+    log("🌶", `failed to delete ref "${ref}" <- ${error.message}`, 'error')
     if (error.message === "Reference does not exist") {
       log("😕", "Proceeding anyway, because tag not existing is the goal", 'warn');
     } else {
@@ -145,6 +146,18 @@ function getGitHubToken() {
   process.exit(1)
 }
 
+function getShouldDeleteReleases() {
+  const deleteReleaseInputKey = 'delete_release';
+  const hasDeleteReleaseInput = !!core.getInput(deleteReleaseInputKey)
+
+  if (hasDeleteReleaseInput) {
+    // This will throw if it's not provided, so we have to wrap it in a check to make
+    // sure it exists first, since it's an optional field.
+    return core.getBooleanInput(deleteReleaseInputKey)
+  }
+  return false;
+}
+
 /**
  * Gets the inputs for this action.
  *
@@ -154,10 +167,10 @@ function getGitHubToken() {
  * tagName: string,
  * octokit: import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}>}
  */
-async function getInputs() {
-  const tagName = core.getInput('tag_name', {required: true})
+function getInputs() {
+  const tagName = core.getInput('tag_name')
   const githubToken = getGitHubToken();
-  const shouldDeleteReleases = core.getBooleanInput('delete_release')
+  const shouldDeleteReleases = getShouldDeleteReleases();
   const repo = getRepo();
   const octokit = github.getOctokit(githubToken, {});
 
@@ -170,6 +183,12 @@ async function getInputs() {
   }
 }
 
+function validateInputField(isValid, invalidMessage) {
+  if (!isValid) {
+    log('🌶', invalidMessage, 'error')
+    process.exit(1)
+  }
+}
 
 /**
  * Runs this action using the provided inputs.
@@ -186,6 +205,11 @@ async function run(inputs) {
   const {tagName, githubToken, shouldDeleteReleases, repo, octokit} = inputs
 
   core.setSecret(githubToken);
+
+  validateInputField(tagName, 'no tag name provided as an input.')
+  validateInputField(githubToken, 'no Github token provided')
+  validateInputField(typeof shouldDeleteReleases === 'boolean', `an invalid value for shouldDeleteReleases was provided: ${shouldDeleteReleases}`)
+  validateInputField(repo?.owner && repo?.repo, 'An invalid repo was provided!')
 
   log("🏷", `given tag is "${tagName}"`);
   log("📕", `given repo is "${repo.owner}/${repo.repo}"`);

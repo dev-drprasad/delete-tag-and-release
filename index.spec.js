@@ -1,326 +1,359 @@
-const {
-  createDeleteReleasesPath,
-  createDeleteTagPath,
-  createGetReleasesPath,
-  createTagRef,
-  getRepoFromEnvironment
-} = require("./utils");
-
-jest.mock('./fetch.js')
-
 describe('Delete tags and releases', () => {
-  const defaultArguments = {
-    GITHUB_TOKEN: 'a-fake-token',
-    INPUT_REPO: 'a-fake-user/a-fake-repo',
-    INPUT_TAG_NAME: 'a-fake-tag',
-    INPUT_DELETE_RELEASE: false
-  }
-
-  const runAction = async () => {
-    // Forces Node to re-run `index.js` as if it were a fresh run.
-    delete require.cache[require.resolve('./index.js')]
-    const run = require('./index.js')
-    await run();
-  }
-
-  beforeEach(() => {
-    process.env = {...defaultArguments}
-    jest.spyOn(process, 'exit')
-      .mockImplementation(() => {
-        throw new Error('Unexpected action exit. Check console.');
-      });
-  })
-
-  afterEach(() => {
-    process.env = undefined
-    jest.clearAllMocks();
-    jest.resetModules();
-  })
-
-  it("does nothing when INPUT_REPO and GITHUB_REPOSITORY aren't set", async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true", INPUT_REPO: undefined, GITHUB_REPOSITORY: undefined}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await expect(runAction()).rejects.toBeTruthy();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
-  it("does nothing without an INPUT_TAG_NAME", async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true", INPUT_TAG_NAME: undefined}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await expect(runAction()).rejects.toBeTruthy();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
-  it('does nothing when without a Github token', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true", GITHUB_TOKEN: undefined}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await expect(runAction()).rejects.toBeTruthy();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
-  it('only deletes the tag when INPUT_DELETE_RELEASE is false', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "false"}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    const fullyQualifiedRepo = getRepoFromEnvironment();
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await runAction();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteTagPath(createTagRef(defaultArguments.INPUT_TAG_NAME), fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      // This is a cheat; we know the "DELETE" releases path always contains the "GET" path, so we use that
-      // as a regex match here.
-      path: expect.stringMatching(createGetReleasesPath(fullyQualifiedRepo))
-    }))
-  })
-
-  it('only deletes the tag when INPUT_DELETE_RELEASE is undefined', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: undefined}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    const fullyQualifiedRepo = getRepoFromEnvironment()
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await runAction();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteTagPath(createTagRef(defaultArguments.INPUT_TAG_NAME), fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      // This is a cheat; we know the "DELETE" releases path always contains the "GET" path, so we use that
-      // as a regex match here.
-      path: expect.stringMatching(createGetReleasesPath(fullyQualifiedRepo))
-    }))
-  })
-
-  it('fallbacks to GITHUB_REPOSITORY when INPUT_REPO is not set', async () => {
-    process.env = {
-      ...process.env,
+  describe('Input validation tests', () => {
+    const defaultEnvironment = {
       INPUT_DELETE_RELEASE: "false",
-      INPUT_REPO: undefined,
-      GITHUB_REPOSITORY: 'a-different-fake/fake-repo'
+      INPUT_REPO: 'a-fake-user/fake-repo',
+      INPUT_GITHUB_TOKEN: 'token',
+      INPUT_TAG_NAME: 'a-tag'
     }
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {error: false},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
+    const getInputs = () => {
+      // Forces Node to re-run `index.js` as if it were a fresh run.
+      delete require.cache[require.resolve('./index.js')]
+      const {getInputs} = require('./index.js')
+      return getInputs();
+    }
+
+    it('fallbacks to GITHUB_REPOSITORY when INPUT_REPO is not set', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        INPUT_REPO: undefined,
+        GITHUB_REPOSITORY: 'a-different-fake/fake-repo',
+      }
+
+      const expected = {
+        repo: {
+          owner: 'a-different-fake',
+          repo: 'fake-repo'
+        }
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
     })
-    const fullyQualifiedRepo = getRepoFromEnvironment();
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
 
-    await runAction();
+    it('ignores GITHUB_REPOSITORY when INPUT_REPO is set', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        GITHUB_REPOSITORY: 'a-different-fake/fake-repo',
+      }
 
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteTagPath(createTagRef(defaultArguments.INPUT_TAG_NAME), fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: expect.stringMatching(createGetReleasesPath(fullyQualifiedRepo))
-    }))
+      const expected = {
+        repo: {
+          owner: 'a-fake-user',
+          repo: 'fake-repo'
+        }
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
+    })
+
+    it('ignores the token from env if set as input', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        GITHUB_TOKEN: 'an-env-token',
+      }
+
+      const expected = {
+        githubToken: 'token'
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
+    })
+
+    it('uses the token from env if not set as input', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        INPUT_GITHUB_TOKEN: undefined,
+        GITHUB_TOKEN: 'an-env-token',
+      }
+
+      const expected = {
+        githubToken: 'an-env-token'
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
+    })
+
+    it('sets should delete releases when its set', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        INPUT_DELETE_RELEASE: 'true',
+      }
+
+      const expected = {
+        shouldDeleteReleases: true
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
+    })
+
+    it('sets should delete releases to false when its not set', async () => {
+      process.env = {
+        ...process.env,
+        ...defaultEnvironment,
+        INPUT_DELETE_RELEASE: undefined,
+      }
+
+      const expected = {
+        shouldDeleteReleases: false
+      }
+      const actual = getInputs();
+
+      expect(actual).toStrictEqual(expect.objectContaining(expected))
+    })
   })
 
-  it('does delete multiple releases and the tag when INPUT_DELETE_RELEASE is true', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true"}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {
-        result: [
-          {tag_name: defaultArguments.INPUT_TAG_NAME, draft: false, id: '1'},
-          {tag_name: defaultArguments.INPUT_TAG_NAME, draft: false, id: '2'},
+  describe('Action tests', () => {
+    const defaultArguments = {
+      githubToken: 'a-fake-token',
+      repo: {owner: 'a-fake-user', repo: 'a-fake-repo'},
+      tagName: 'a-fake-tag',
+      shouldDeleteReleases: true
+    }
+
+    /**
+     * Runs the action using the provided inputs.
+     *
+     * @param inputs
+     * @param inputs.shouldDeleteReleases {boolean}
+     * @param inputs.githubToken {string}
+     * @param inputs.repo {repo: string, owner: string}
+     * @param inputs.tagName {string}
+     * @param inputs.octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
+     * @return {Promise<void>}
+     */
+    const runAction = async (inputs) => {
+      // Forces Node to re-run `index.js` as if it were a fresh run.
+      delete require.cache[require.resolve('./index.js')]
+      const {run} = require('./index.js')
+      await run(inputs);
+    }
+
+    beforeEach(() => {
+      jest.spyOn(process, 'exit')
+        .mockImplementation(() => {
+          throw new Error('Unexpected action exit. Check console.');
+        });
+    })
+
+    afterEach(() => {
+      jest.clearAllMocks();
+      jest.resetModules();
+    })
+
+    it("does nothing when repo isn't provided", async () => {
+      const octokit = jest.fn()
+      const inputs = {
+        ...defaultArguments,
+        repo: undefined,
+        octokit
+      }
+      await expect(runAction(inputs)).rejects.toBeTruthy();
+    })
+
+    it("does nothing without an tagName input", async () => {
+      const octokit = jest.fn()
+      const inputs = {
+        ...defaultArguments,
+        tagName: undefined,
+        octokit
+      }
+      await expect(runAction(inputs)).rejects.toBeTruthy();
+    })
+
+    it('does nothing when without a Github token', async () => {
+      const octokit = jest.fn()
+      const inputs = {
+        ...defaultArguments,
+        githubToken: undefined,
+        octokit
+      }
+      await expect(runAction(inputs)).rejects.toBeTruthy();
+    })
+
+    it('does nothing when shouldDeleteRelease is undefined', async () => {
+      const octokit = jest.fn()
+      const inputs = {
+        ...defaultArguments,
+        shouldDeleteReleases: undefined,
+        octokit
+      }
+      await expect(runAction(inputs)).rejects.toBeTruthy();
+    })
+
+    it('only deletes the tag when INPUT_DELETE_RELEASE is false', async () => {
+      const deleteRef = jest.fn()
+      const octokit = {
+        rest: {
+          git: {
+            deleteRef
+          }
+        }
+      }
+      const inputs = {
+        ...defaultArguments,
+        shouldDeleteReleases: false,
+        octokit
+      }
+
+      await runAction(inputs);
+
+      expect(deleteRef).toHaveBeenCalledTimes(1);
+      expect(deleteRef).toHaveBeenCalledWith({
+        owner: 'a-fake-user',
+        repo: 'a-fake-repo',
+        ref: 'refs/tags/a-fake-tag'
+      })
+    })
+
+    it('does delete multiple releases and the tag when INPUT_DELETE_RELEASE is true', async () => {
+      const deleteRef = jest.fn()
+      const listReleases = jest.fn()
+      const deleteRelease = jest.fn()
+      const octokit = {
+        rest: {
+          git: {
+            deleteRef
+          },
+          repos: {
+            listReleases, deleteRelease
+          }
+        }
+      }
+      const inputs = {
+        ...defaultArguments,
+        octokit
+      }
+
+      listReleases.mockReturnValueOnce([
+          {tag_name: defaultArguments.tagName, draft: false, id: '1'},
+          {tag_name: defaultArguments.tagName, draft: false, id: '2'},
           {tag_name: 'no-delete', draft: false, id: '3'}
         ]
-      },
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
+      )
+
+      await runAction(inputs);
+
+      expect(deleteRef).toHaveBeenCalledTimes(1);
+      expect(deleteRef).toHaveBeenCalledWith({
+        owner: 'a-fake-user',
+        repo: 'a-fake-repo',
+        ref: 'refs/tags/a-fake-tag'
+      })
+      expect(listReleases).toHaveBeenCalledTimes(1);
+      expect(listReleases).toBeCalledWith({
+        owner: defaultArguments.repo.owner,
+        repo: defaultArguments.repo.repo
+      })
+      expect(deleteRelease).toHaveBeenCalledTimes(2);
+      expect(deleteRelease).toHaveBeenCalledWith({
+        release_id: '1'
+      })
+      expect(deleteRelease).toHaveBeenCalledWith({
+        release_id: '2'
+      })
+      expect(deleteRelease).not.toHaveBeenCalledWith({
+        release_id: 'no-delete'
+      })
     })
-    const fullyQualifiedRepo = getRepoFromEnvironment();
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
 
-    await runAction();
+    it('does not delete a draft release', async () => {
+      const deleteRef = jest.fn()
+      const listReleases = jest.fn()
+      const deleteRelease = jest.fn()
+      const octokit = {
+        rest: {
+          git: {
+            deleteRef
+          },
+          repos: {
+            listReleases, deleteRelease
+          }
+        }
+      }
+      const inputs = {
+        ...defaultArguments,
+        octokit
+      }
 
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteTagPath(createTagRef(process.env.INPUT_TAG_NAME), fullyQualifiedRepo)
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('1', fullyQualifiedRepo)
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('2', fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('3', fullyQualifiedRepo)
-    }))
-  })
-
-  it('does not delete a draft release', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true"}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {result: [{tag_name: defaultArguments.INPUT_TAG_NAME, draft: true, id: '1'},]},
-      DELETE_RELEASE: {error: false},
-      DELETE_TAG: {error: false}
-    })
-    const fullyQualifiedRepo = getRepoFromEnvironment();
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
-
-    await runAction();
-
-    expect(process.env).toEqual(originalProcessEnv)
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteTagPath(createTagRef(process.env.INPUT_TAG_NAME), fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('1', fullyQualifiedRepo)
-    }))
-  })
-
-  it('stops deleting releases when one fails to delete', async () => {
-    process.env = {...process.env, INPUT_DELETE_RELEASE: "true"}
-    const originalProcessEnv = {...process.env}
-    const mockFetch = createMockFetch({
-      GET_RELEASES: {
-        result: [
-          {tag_name: defaultArguments.INPUT_TAG_NAME, draft: false, id: '1'},
-          {tag_name: defaultArguments.INPUT_TAG_NAME, draft: false, id: '2'}
+      listReleases.mockReturnValueOnce([
+          {tag_name: defaultArguments.tagName, draft: true, id: '1'},
         ]
-      },
-      DELETE_RELEASE: {'1': {error: true}},
-      DELETE_TAG: {error: false}
+      )
+
+      await runAction(inputs);
+
+
+      expect(deleteRef).toHaveBeenCalledTimes(1);
+      expect(deleteRef).toHaveBeenCalledWith({
+        owner: 'a-fake-user',
+        repo: 'a-fake-repo',
+        ref: 'refs/tags/a-fake-tag'
+      })
+      expect(listReleases).toHaveBeenCalledTimes(1);
+      expect(listReleases).toBeCalledWith({
+        owner: defaultArguments.repo.owner,
+        repo: defaultArguments.repo.repo
+      })
+      expect(deleteRelease).not.toHaveBeenCalled();
     })
-    const fullyQualifiedRepo = getRepoFromEnvironment()
-    jest.requireMock('./fetch.js').mockImplementation(mockFetch)
 
-    await expect(runAction()).rejects.toBeTruthy();
+    it('stops deleting releases when one fails to delete', async () => {
+      const deleteRef = jest.fn()
+      const listReleases = jest.fn()
+      const deleteRelease = jest.fn()
+      const octokit = {
+        rest: {
+          git: {
+            deleteRef
+          },
+          repos: {
+            listReleases, deleteRelease
+          }
+        }
+      }
+      const inputs = {
+        ...defaultArguments,
+        octokit
+      }
 
-    expect(process.env).toEqual(originalProcessEnv);
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: 'GET'
-    }))
-    expect(mockFetch).toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('1', fullyQualifiedRepo)
-    }))
-    expect(mockFetch).not.toBeCalledWith(expect.objectContaining({
-      method: 'DELETE',
-      path: createDeleteReleasesPath('2', fullyQualifiedRepo)
-    }))
+      listReleases.mockReturnValueOnce([
+          {tag_name: defaultArguments.tagName, draft: false, id: '1'},
+          {tag_name: defaultArguments.tagName, draft: false, id: '2'},
+          {tag_name: defaultArguments.tagName, draft: false, id: '3'},
+        ]
+      )
+      deleteRelease.mockImplementation(({release_id}) => {
+        if (release_id === '1') {
+          return Promise.reject(new Error("Something bad happened!"))
+        }
+      })
+
+
+      await expect(runAction(inputs)).rejects.toBeTruthy();
+
+
+      expect(deleteRef).not.toHaveBeenCalled()
+      expect(listReleases).toHaveBeenCalledTimes(1);
+      expect(listReleases).toBeCalledWith({
+        owner: defaultArguments.repo.owner,
+        repo: defaultArguments.repo.repo
+      })
+      expect(deleteRelease).toHaveBeenCalledWith({
+        release_id: '1'
+      });
+      expect(deleteRelease).not.toHaveBeenCalledWith({
+        release_id: '2'
+      });
+    })
   })
-
-  const createMockFetch = (options) => {
-    const fullyQualifiedRepo = getRepoFromEnvironment();
-    const releaseIdFromPath = (path) => path.split('/')[5]
-    const isDeleteReleasesMatch = (path, method) => {
-      if (method !== 'DELETE') return false
-      if (options.DELETE_RELEASE.error !== undefined) {
-        return path.startsWith(createGetReleasesPath(fullyQualifiedRepo));
-      }
-      const declaredReleases = Object.keys(options.DELETE_RELEASE) ?? [];
-      for (const releaseId of declaredReleases) {
-        if (path === createDeleteReleasesPath(releaseId, fullyQualifiedRepo) && options.DELETE_RELEASE[releaseId] !== undefined) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    return jest.fn(async ({path, method}) => {
-      if (path === createGetReleasesPath(fullyQualifiedRepo) && method === "GET") {
-        if (options.GET_RELEASES.result !== undefined) {
-          return options.GET_RELEASES.result
-        } else {
-          throw new Error(options.GET_RELEASES.error ?? 'Generic network error')
-        }
-      }
-      if (isDeleteReleasesMatch(path, method)) {
-        if (options.DELETE_RELEASE?.error || options.DELETE_RELEASE[releaseIdFromPath(path)]?.error) {
-          throw new Error(options.DELETE_RELEASE?.error ?? options.DELETE_RELEASE[releaseIdFromPath(path)].error)
-        } else {
-          return undefined
-        }
-      }
-      if (path === createDeleteTagPath(createTagRef(process.env.INPUT_TAG_NAME), fullyQualifiedRepo) && method === "DELETE") {
-        if (options.DELETE_RELEASE.error) {
-          throw new Error(options.DELETE_RELEASE.error)
-        } else {
-          return undefined
-        }
-      }
-      throw new Error(`Unexpected request: ${method} ${path}`)
-    })
-  }
-})
+});
