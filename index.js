@@ -1,112 +1,181 @@
-const fetch = require("./fetch");
 const {
-  createGetReleasesPath,
-  createDeleteReleasesPath,
-  createDeleteTagPath,
-  createTagRef,
-  getRepoFromEnvironment
+  createTagRef
 } = require("./utils");
 
-if (!process.env.GITHUB_TOKEN) {
-  console.error("🔴 no GITHUB_TOKEN found. pass `GITHUB_TOKEN` as env");
-  process.exit(1);
+const github = require('@actions/github');
+const core = require('@actions/core');
+
+/**
+ * Logs a message.
+ *
+ * @param header {string} A header (preferably an emoji representing the "feel" of the message) that should be displayed before
+ * the message. This is expected to be a single character.
+ * @param message {string} The message to display.
+ * @param level {'default' | 'error' | 'warn'} The severity level for this message.
+ */
+function log(header, message, level = 'default') {
+  const loggableMessage = `${header.padEnd(3)}${message}`
+  switch (level) {
+    case "default":
+      core.info(loggableMessage)
+      break;
+    case "error":
+      core.error(loggableMessage)
+      break;
+    case "warn":
+      core.warning(loggableMessage)
+      break;
+
+  }
 }
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
-const fullyQualifiedRepo = getRepoFromEnvironment()
-if (!fullyQualifiedRepo) {
-  console.error("🔴 no GITHUB_REPOSITORY found. pass `GITHUB_REPOSITORY` as env or `INPUT_REPO` as an input");
-  process.exit(1);
-}
-console.log(`📕  given repo is "${fullyQualifiedRepo}"`);
-
-if (!process.env.INPUT_TAG_NAME) {
-  console.error("🌶  no tag name found. use `tag_name` to pass value");
-  process.exit(1);
-}
-const tagName = process.env.INPUT_TAG_NAME;
-
-const shouldDeleteRelease = process.env.INPUT_DELETE_RELEASE === "true";
-
-const commonOpts = {
-  host: "api.github.com",
-  port: 443,
-  protocol: "https:",
-  auth: `user:${GITHUB_TOKEN}`,
-  headers: {
-    "Content-Type": "application/json",
-    "User-Agent": "node.js",
-  },
-};
-
-console.log(`🏷  given tag is "${tagName}"`);
-
-const tagRef = createTagRef(tagName);
-
-async function deleteTag() {
+/**
+ * Deletes a single tag with the name of {@link tagName}.
+ * @param octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
+ * @param owner {string} The owner of the repo with the releases to delete.
+ * @param repo {string} The repo with the releases to delete.
+ * @param tagName {string}
+ * @return {Promise<void>}
+ */
+async function deleteTag(octokit, {owner, repo}, tagName) {
   try {
-    await fetch({
-      ...commonOpts,
-      path: createDeleteTagPath(tagRef, fullyQualifiedRepo),
-      method: "DELETE",
-    });
+    await octokit.rest.git.deleteRef({
+      owner,
+      repo,
+      ref: createTagRef(tagName)
+    })
 
-    console.log(`✅  tag "${tagName}" deleted successfully!`);
+    log("✅", `"${tagName}" deleted successfully!`)
   } catch (error) {
-    console.error(`🌶  failed to delete ref "${tagRef}" <- ${error.message}`);
+    log("🌶", `failed to delete ref "${tagRef}" <- ${error.message}`, 'error')
     if (error.message === "Reference does not exist") {
-      console.error("😕  Proceeding anyway, because tag not existing is the goal");
+      log("😕", "Proceeding anyway, because tag not existing is the goal", 'warn');
     } else {
-      console.error(`🌶  An error occurred while deleting the tag "${tagName}"`);
+      log("🌶", `An error occurred while deleting the tag "${tagName}"`, 'error')
       process.exit(1)
     }
   }
 }
 
-async function deleteReleases() {
+/**
+ * Deletes all releases that are pointed to {@link tagName}.
+ *
+ * @param octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
+ * @param owner {string} The owner of the repo with the releases to delete.
+ * @param repo {string} The repo with the releases to delete.
+ * @param tagName {string} The tag name to delete releases that are based on this tag.
+ * @return {Promise<void>}
+ */
+async function deleteReleases(octokit, {owner, repo}, tagName) {
+  /** @type {number[]} **/
   let releaseIds = [];
   try {
-    const data = await fetch({
-      ...commonOpts,
-      path: createGetReleasesPath(fullyQualifiedRepo),
-      method: "GET",
-    });
-    releaseIds = (data || [])
+    releaseIds = (await octokit.rest.repos.listReleases({
+      owner,
+      repo
+    }) ?? [])
       .filter(({tag_name, draft}) => tag_name === tagName && draft === false)
       .map(({id}) => id);
   } catch (error) {
-    console.error(`🌶  failed to get list of releases <- ${error.message}`);
+    log("🌶", `failed to get list of releases <- ${error.message}`, 'error')
     process.exit(1)
     return;
   }
 
   if (releaseIds.length === 0) {
-    console.error(`😕  no releases found associated to tag "${tagName}"`);
+    log("😕", `no releases found associated to tag "${tagName}"`, 'warn');
     return;
   }
-  console.log(`🍻  found ${releaseIds.length} releases to delete`);
+  log("🍻", `found ${releaseIds.length} releases to delete`);
 
-  for (let i = 0; i < releaseIds.length; i++) {
-    const releaseId = releaseIds[i];
-
+  for (const release_id of releaseIds) {
     try {
-      await fetch({
-        ...commonOpts,
-        path: createDeleteReleasesPath(releaseId, fullyQualifiedRepo),
-        method: "DELETE",
+      await octokit.rest.repos.deleteRelease({
+        release_id
       });
     } catch (error) {
-      console.error(`🌶  failed to delete release with id "${releaseId}"  <- ${error.message}`);
+      log("🌶", `failed to delete release with id "${release_id}"  <- ${error.message}`, 'error')
       process.exit(1);
     }
   }
 
-  console.log(`👍🏼  all releases deleted successfully!`);
+  log("👍🏼", "all releases deleted successfully!");
 }
 
-module.exports = async function run() {
-  if (shouldDeleteRelease) {
-    await deleteReleases();
+/**
+ * Gets the repo information for the repo that this action should operate on. Defaults to the repo running this action
+ * if the repo isn't explicitly set via this action's input.
+ *
+ * @return {{repo: string, owner: string}}
+ */
+function getRepo() {
+  const inputRepoData = core.getInput('repo')
+  const [inputOwner, inputRepo] = inputRepoData?.split('/')
+
+  if (inputRepo && inputOwner) {
+    return {
+      repo: inputRepo,
+      owner: inputOwner
+    }
+  } else if (inputRepo || inputOwner) {
+    log('🌶', `a valid repo was not given. Expected "${inputRepoData}" to be in the form of "owner/repo"`)
+    process.exit(1)
+  } else {
+    // This default should only happen when no input repo at all is provided.
+    return github.context.repo
   }
-  await deleteTag();
 }
+
+/**
+ * Gets the inputs for this action.
+ *
+ * @return {Promise<{shouldDeleteReleases: boolean,
+ * githubToken: string,
+ * repo: {repo: string, owner: string},
+ * tagName: string,
+ * octokit: import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}>}
+ */
+async function getInputs() {
+  const tagName = core.getInput('tag_name', {required: true})
+  const githubToken = core.getInput('github_token', {required: true});
+  const shouldDeleteReleases = core.getBooleanInput('delete_release')
+  const repo = getRepo();
+  const octokit = github.getOctokit(githubToken, {});
+
+  return {
+    octokit,
+    tagName,
+    githubToken,
+    shouldDeleteReleases,
+    repo
+  }
+}
+
+
+/**
+ * Runs this action using the provided inputs.
+ *
+ * @param inputs
+ * @param inputs.shouldDeleteReleases {boolean}
+ * @param inputs.githubToken {string}
+ * @param inputs.repo {repo: string, owner: string}
+ * @param inputs.tagName {string}
+ * @param inputs.octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
+ * @return {Promise<void>}
+ */
+async function run(inputs) {
+  const {tagName, githubToken, shouldDeleteReleases, repo, octokit} = inputs
+
+  core.setSecret(githubToken);
+
+  log("🏷", `given tag is "${tagName}"`);
+  log("📕", `given repo is "${repo.owner}/${repo.repo}"`);
+  log("📕", `delete releases is set to "${shouldDeleteReleases}"`);
+
+  if (shouldDeleteReleases) {
+    await deleteReleases(octokit, repo, tagName);
+  }
+  await deleteTag(octokit, repo, tagName);
+}
+
+module.exports = {getInputs, run}
