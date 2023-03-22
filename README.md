@@ -29,17 +29,17 @@ Tests can be run via:
 npm test
 ```
 
-Since this is a repo for a GitHub Action, **every new commit that changes code must include a new bundle.** You can 
+Since this is a repo for a [GitHub Action](https://docs.github.com/en/actions), **every new commit that changes code must include a new bundle.** You can 
 generate a new bundle via running:
 
 ```shell
 npm run package
 ```
 
-and commiting the resulting changes that will be in the `dist/` folder.
+and committing the resulting changes that will be in the `dist/` folder.
 
 ## Releasing
-As this repo is a GitHub Action, releases are done via creating a new tag and pushing that tag to the repo. A new
+Releases are done by creating a new tag and pushing that tag to the repo. A new
 release can be made via the following:
 
 ```shell
@@ -52,6 +52,6 @@ git push --follow-tags
 ```
 
 This will update the version in the `package.json`, create a new commit based off of the master branch, and create a 
-new Git tag named the new version that points to that new commit. Remember the `--follow-tags` flag when running 
+new Git tag with that version that points to the new commit. Remember to use the `--follow-tags` flag when running 
 `git push`! Without it, the new tag won't be pushed.
 
