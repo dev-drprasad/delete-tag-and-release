@@ -1,2 +1,2 @@
-const run = require('./index.js')
-run()
+const {run, getInputs} = require('./index.js')
+run(getInputs())

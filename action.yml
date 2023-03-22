@@ -8,16 +8,19 @@ branding:
 
 inputs:
   tag_name:
-    description: tag name
+    description: The name of the tag to delete.
+    required: true
+  github_token:
+    description: A github token that has write access to the repo where the tag is.
     required: true
   delete_release:
-    description: whether to delete release or not
+    description: Whether to delete all releases that correspond to the provided tag.
     required: false
-    default: true
+    default: 'true'
   repo:
-    description: target repository as <owner>/<repository>
+    description: target repository as <owner>/<repository>. Defaults to the repo running this action.
     required: false
 
 runs:
   using: 'node16'
-  main: 'main.js'
+  main: 'dist/main.js'
