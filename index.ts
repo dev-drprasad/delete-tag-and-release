@@ -1,29 +1,39 @@
-const {
-  createTagRef
-} = require("./utils");
+import {createTagRef} from "./utils";
+import {getOctokit, context} from "@actions/github";
+import {setSecret, info, warning, error, getInput, getBooleanInput} from "@actions/core";
 
-const github = require('@actions/github');
-const core = require('@actions/core');
+export type Octokit = ReturnType<typeof getOctokit>;
+type QualifiedRepo = {
+    owner: string;
+    repo: string;
+}
+export interface WorkflowInput {
+  githubToken: string;
+  shouldDeleteReleases: boolean;
+  repo: QualifiedRepo;
+  tagName: string;
+  octokit: Octokit;
+}
 
 /**
  * Logs a message.
  *
- * @param header {string} A header (preferably an emoji representing the "feel" of the message) that should be displayed before
+ * @param header A header (preferably an emoji representing the "feel" of the message) that should be displayed before
  * the message. This is expected to be a single character.
- * @param message {string} The message to display.
- * @param level {'default' | 'error' | 'warn'} The severity level for this message.
+ * @param message The message to display.
+ * @param level  The severity level for this message.
  */
-function log(header, message, level = 'default') {
+function log(header: string, message: string, level: 'default' | 'error' | 'warn' = 'default') {
   const loggableMessage = `${header.padEnd(3)}${message}`
   switch (level) {
     case "default":
-      core.info(loggableMessage)
+      info(loggableMessage)
       break;
     case "error":
-      core.error(loggableMessage)
+      error(loggableMessage)
       break;
     case "warn":
-      core.warning(loggableMessage)
+      warning(loggableMessage)
       break;
 
   }
@@ -31,13 +41,12 @@ function log(header, message, level = 'default') {
 
 /**
  * Deletes a single tag with the name of {@link tagName}.
- * @param octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
- * @param owner {string} The owner of the repo with the releases to delete.
- * @param repo {string} The repo with the releases to delete.
- * @param tagName {string}
- * @return {Promise<void>}
+ * @param octokit The Octokit instance to use for making API calls to GitHub.
+ * @param owner The owner of the repo with the releases to delete.
+ * @param repo The repo with the releases to delete.
+ * @param tagName
  */
-async function deleteTag(octokit, {owner, repo}, tagName) {
+async function deleteTag(octokit: Octokit, {owner, repo}: QualifiedRepo, tagName: string) {
   const ref = createTagRef(tagName)
   try {
     await octokit.rest.git.deleteRef({
@@ -48,37 +57,41 @@ async function deleteTag(octokit, {owner, repo}, tagName) {
 
     log("✅", `"${tagName}" deleted successfully!`)
   } catch (error) {
-    log("🌶", `failed to delete ref "${ref}" <- ${error.message}`, 'error')
-    if (error.message === "Reference does not exist") {
-      log("😕", "Proceeding anyway, because tag not existing is the goal", 'warn');
-    } else {
-      log("🌶", `An error occurred while deleting the tag "${tagName}"`, 'error')
-      process.exit(1)
-    }
+      if (error instanceof Error) {
+        log("🌶", `failed to delete ref "${ref}" <- ${error.message}`, 'error')
+        if (error.message === "Reference does not exist") {
+            log("😕", "Proceeding anyway, because tag not existing is the goal", 'warn');
+        } else {
+            log("🌶", `An error occurred while deleting the tag "${tagName}"`, 'error')
+            process.exit(1)
+        }
+      } else {
+        log("🌶", `An error occurred while deleting the tag "${tagName}"`, 'error')
+        process.exit(1)
+      }
   }
 }
 
 /**
  * Deletes all releases that are pointed to {@link tagName}.
  *
- * @param octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
- * @param owner {string} The owner of the repo with the releases to delete.
- * @param repo {string} The repo with the releases to delete.
- * @param tagName {string} The tag name to delete releases that are based on this tag.
- * @return {Promise<void>}
+ * @param octokit The Octokit instance to use for making API calls to GitHub.
+ * @param qualifiedRepo The fully qualified repo to delete releases for.
+ * @param tagName The tag name to delete releases that are based on this tag.
  */
-async function deleteReleases(octokit, {owner, repo}, tagName) {
-  /** @type {number[]} **/
-  let releaseIds = [];
+async function deleteReleases(octokit: Octokit, qualifiedRepo: QualifiedRepo, tagName: string) {
+  let releaseIds: number[] = [];
   try {
-    releaseIds = (await octokit.rest.repos.listReleases({
-      owner,
-      repo
-    }) ?? [])
+    const releases = (await octokit.rest.repos.listReleases(qualifiedRepo)).data ?? []
+    releaseIds = releases
       .filter(({tag_name, draft}) => tag_name === tagName && draft === false)
       .map(({id}) => id);
   } catch (error) {
-    log("🌶", `failed to get list of releases <- ${error.message}`, 'error')
+    if (error instanceof Error) {
+      log("🌶", `failed to get list of releases <- ${error.message}`, 'error')
+    } else {
+      log("🌶", `failed to get list of releases <- ${error}`, 'error')
+    }
     process.exit(1)
     return;
   }
@@ -92,10 +105,15 @@ async function deleteReleases(octokit, {owner, repo}, tagName) {
   for (const release_id of releaseIds) {
     try {
       await octokit.rest.repos.deleteRelease({
-        release_id
+        release_id,
+        ...qualifiedRepo
       });
     } catch (error) {
-      log("🌶", `failed to delete release with id "${release_id}"  <- ${error.message}`, 'error')
+      if (error instanceof Error) {
+        log("🌶", `failed to delete release with id "${release_id}"  <- ${error.message}`, 'error')
+      } else {
+        log("🌶", `failed to delete release with id "${release_id}"  <- ${error}`, 'error')
+      }
       process.exit(1);
     }
   }
@@ -106,11 +124,9 @@ async function deleteReleases(octokit, {owner, repo}, tagName) {
 /**
  * Gets the repo information for the repo that this action should operate on. Defaults to the repo running this action
  * if the repo isn't explicitly set via this action's input.
- *
- * @return {{repo: string, owner: string}}
  */
-function getRepo() {
-  const inputRepoData = core.getInput('repo')
+function getRepo(): QualifiedRepo {
+  const inputRepoData = getInput('repo')
   const [inputOwner, inputRepo] = inputRepoData?.split('/')
 
   if (inputRepo && inputOwner) {
@@ -123,13 +139,13 @@ function getRepo() {
     process.exit(1)
   } else {
     // This default should only happen when no input repo at all is provided.
-    return github.context.repo
+    return context.repo
   }
 }
 
 function getGitHubToken() {
   const tokenFromEnv = process.env.GITHUB_TOKEN
-  const inputToken = core.getInput('github_token');
+  const inputToken = getInput('github_token');
 
   if (inputToken) {
     return inputToken;
@@ -148,15 +164,17 @@ function getGitHubToken() {
 
 function getShouldDeleteReleases() {
   const deleteReleaseInputKey = 'delete_release';
-  const hasDeleteReleaseInput = !!core.getInput(deleteReleaseInputKey)
+  const hasDeleteReleaseInput = !!getInput(deleteReleaseInputKey)
 
   if (hasDeleteReleaseInput) {
     // This will throw if it's not provided, so we have to wrap it in a check to make
     // sure it exists first, since it's an optional field.
-    return core.getBooleanInput(deleteReleaseInputKey)
+    return getBooleanInput(deleteReleaseInputKey)
   }
   return false;
 }
+
+
 
 /**
  * Gets the inputs for this action.
@@ -167,12 +185,12 @@ function getShouldDeleteReleases() {
  * tagName: string,
  * octokit: import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}>}
  */
-function getInputs() {
-  const tagName = core.getInput('tag_name')
+export function getInputs(): WorkflowInput {
+  const tagName = getInput('tag_name')
   const githubToken = getGitHubToken();
   const shouldDeleteReleases = getShouldDeleteReleases();
   const repo = getRepo();
-  const octokit = github.getOctokit(githubToken, {});
+  const octokit = getOctokit(githubToken);
 
   return {
     octokit,
@@ -183,7 +201,7 @@ function getInputs() {
   }
 }
 
-function validateInputField(isValid, invalidMessage) {
+function validateInputField(isValid: any, invalidMessage: string) {
   if (!isValid) {
     log('🌶', invalidMessage, 'error')
     process.exit(1)
@@ -192,20 +210,14 @@ function validateInputField(isValid, invalidMessage) {
 
 /**
  * Runs this action using the provided inputs.
- *
- * @param inputs
- * @param inputs.shouldDeleteReleases {boolean}
- * @param inputs.githubToken {string}
- * @param inputs.repo {repo: string, owner: string}
- * @param inputs.tagName {string}
- * @param inputs.octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
- * @return {Promise<void>}
  */
-async function run(inputs) {
+export async function run(inputs: WorkflowInput) {
   const {tagName, githubToken, shouldDeleteReleases, repo, octokit} = inputs
 
-  core.setSecret(githubToken);
+  setSecret(githubToken);
 
+  // Purposefully perform these checks even though the types match because it's possible the inputs were provided
+  // directly as environment variables
   validateInputField(tagName, 'no tag name provided as an input.')
   validateInputField(githubToken, 'no Github token provided')
   validateInputField(typeof shouldDeleteReleases === 'boolean', `an invalid value for shouldDeleteReleases was provided: ${shouldDeleteReleases}`)
@@ -220,5 +232,3 @@ async function run(inputs) {
   }
   await deleteTag(octokit, repo, tagName);
 }
-
-module.exports = {getInputs, run}

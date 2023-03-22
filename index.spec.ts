@@ -1,3 +1,6 @@
+import {WorkflowInput, Octokit} from "./index";
+import {expect, jest, describe, it, beforeEach, afterEach} from '@jest/globals';
+
 describe('Delete tags and releases', () => {
   describe('Input validation tests', () => {
     const defaultEnvironment = {
@@ -6,10 +9,10 @@ describe('Delete tags and releases', () => {
       INPUT_GITHUB_TOKEN: 'token',
       INPUT_TAG_NAME: 'a-tag'
     }
-    const getInputs = () => {
-      // Forces Node to re-run `index.js` as if it were a fresh run.
-      delete require.cache[require.resolve('./index.js')]
-      const {getInputs} = require('./index.js')
+    const getInputs = (): WorkflowInput => {
+      // Forces Node to re-run `index.ts` as if it were a fresh run.
+      delete require.cache[require.resolve('./index.ts')]
+      const {getInputs} = require('./index.ts')
       return getInputs();
     }
 
@@ -113,7 +116,7 @@ describe('Delete tags and releases', () => {
   })
 
   describe('Action tests', () => {
-    const defaultArguments = {
+    const defaultArguments: Omit<WorkflowInput, 'octokit'> = {
       githubToken: 'a-fake-token',
       repo: {owner: 'a-fake-user', repo: 'a-fake-repo'},
       tagName: 'a-fake-tag',
@@ -122,19 +125,11 @@ describe('Delete tags and releases', () => {
 
     /**
      * Runs the action using the provided inputs.
-     *
-     * @param inputs
-     * @param inputs.shouldDeleteReleases {boolean}
-     * @param inputs.githubToken {string}
-     * @param inputs.repo {repo: string, owner: string}
-     * @param inputs.tagName {string}
-     * @param inputs.octokit {import("@octokit/core").Octokit & import("@octokit/plugin-rest-endpoint-methods").restEndpointMethods}
-     * @return {Promise<void>}
      */
-    const runAction = async (inputs) => {
-      // Forces Node to re-run `index.js` as if it were a fresh run.
-      delete require.cache[require.resolve('./index.js')]
-      const {run} = require('./index.js')
+    const runAction = async (inputs: WorkflowInput) => {
+      // Forces Node to re-run `index.ts` as if it were a fresh run.
+      delete require.cache[require.resolve('./index.ts')]
+      const {run} = require('./index.ts')
       await run(inputs);
     }
 
@@ -151,55 +146,54 @@ describe('Delete tags and releases', () => {
     })
 
     it("does nothing when repo isn't provided", async () => {
-      const octokit = jest.fn()
       const inputs = {
         ...defaultArguments,
         repo: undefined,
-        octokit
+        octokit: createOctokit()
       }
-      await expect(runAction(inputs)).rejects.toBeTruthy();
+      await expect(runAction(inputs as unknown as WorkflowInput)).rejects.toBeTruthy();
     })
 
     it("does nothing without an tagName input", async () => {
-      const octokit = jest.fn()
       const inputs = {
         ...defaultArguments,
         tagName: undefined,
-        octokit
+        octokit: createOctokit()
       }
-      await expect(runAction(inputs)).rejects.toBeTruthy();
+      // This tests the back-up validation logic works as expected in case the types are wrong, hence the weird casting.
+      await expect(runAction(inputs as unknown as WorkflowInput)).rejects.toBeTruthy();
     })
 
     it('does nothing when without a Github token', async () => {
-      const octokit = jest.fn()
       const inputs = {
         ...defaultArguments,
         githubToken: undefined,
-        octokit
+        octokit: createOctokit()
       }
-      await expect(runAction(inputs)).rejects.toBeTruthy();
+      // This tests the back-up validation logic works as expected in case the types are wrong, hence the weird casting.
+      await expect(runAction(inputs as unknown as WorkflowInput)).rejects.toBeTruthy();
     })
 
     it('does nothing when shouldDeleteRelease is undefined', async () => {
-      const octokit = jest.fn()
       const inputs = {
         ...defaultArguments,
         shouldDeleteReleases: undefined,
-        octokit
+        octokit: createOctokit()
       }
-      await expect(runAction(inputs)).rejects.toBeTruthy();
+      // This tests the back-up validation logic works as expected in case the types are wrong, hence the weird casting.
+      await expect(runAction(inputs as unknown as WorkflowInput)).rejects.toBeTruthy();
     })
 
     it('only deletes the tag when INPUT_DELETE_RELEASE is false', async () => {
-      const deleteRef = jest.fn()
-      const octokit = {
+      const deleteRef = jest.fn<Octokit['rest']['git']['deleteRef']>()
+      const octokit = createOctokit({
         rest: {
           git: {
             deleteRef
           }
         }
-      }
-      const inputs = {
+      })
+      const inputs: WorkflowInput = {
         ...defaultArguments,
         shouldDeleteReleases: false,
         octokit
@@ -217,9 +211,9 @@ describe('Delete tags and releases', () => {
 
     it('does delete multiple releases and the tag when INPUT_DELETE_RELEASE is true', async () => {
       const deleteRef = jest.fn()
-      const listReleases = jest.fn()
+      const listReleases = jest.fn<Octokit['rest']['repos']['listReleases']>()
       const deleteRelease = jest.fn()
-      const octokit = {
+      const octokit = createOctokit({
         rest: {
           git: {
             deleteRef
@@ -228,17 +222,18 @@ describe('Delete tags and releases', () => {
             listReleases, deleteRelease
           }
         }
-      }
-      const inputs = {
+      })
+      const inputs: WorkflowInput = {
         ...defaultArguments,
         octokit
       }
 
-      listReleases.mockReturnValueOnce([
-          {tag_name: defaultArguments.tagName, draft: false, id: '1'},
-          {tag_name: defaultArguments.tagName, draft: false, id: '2'},
-          {tag_name: 'no-delete', draft: false, id: '3'}
-        ]
+      listReleases.mockResolvedValueOnce(createListReleaseResponse({
+          data:[
+            createReleaseData({tag_name: defaultArguments.tagName, draft: false, id: 1}),
+            createReleaseData({tag_name: defaultArguments.tagName, draft: false, id: 2}),
+            createReleaseData({tag_name: 'no-delete', draft: false, id: 3})
+        ]})
       )
 
       await runAction(inputs);
@@ -255,22 +250,22 @@ describe('Delete tags and releases', () => {
         repo: defaultArguments.repo.repo
       })
       expect(deleteRelease).toHaveBeenCalledTimes(2);
-      expect(deleteRelease).toHaveBeenCalledWith({
-        release_id: '1'
-      })
-      expect(deleteRelease).toHaveBeenCalledWith({
-        release_id: '2'
-      })
-      expect(deleteRelease).not.toHaveBeenCalledWith({
-        release_id: 'no-delete'
-      })
+      expect(deleteRelease).toHaveBeenCalledWith(expect.objectContaining({
+        release_id: 1
+      }))
+      expect(deleteRelease).toHaveBeenCalledWith(expect.objectContaining({
+        release_id: 2
+      }))
+      expect(deleteRelease).not.toHaveBeenCalledWith(expect.objectContaining({
+        release_id: 3
+      }))
     })
 
     it('does not delete a draft release', async () => {
       const deleteRef = jest.fn()
-      const listReleases = jest.fn()
+      const listReleases = jest.fn<Octokit['rest']['repos']['listReleases']>()
       const deleteRelease = jest.fn()
-      const octokit = {
+      const octokit = createOctokit({
         rest: {
           git: {
             deleteRef
@@ -279,16 +274,18 @@ describe('Delete tags and releases', () => {
             listReleases, deleteRelease
           }
         }
-      }
-      const inputs = {
+      });
+      const inputs: WorkflowInput = {
         ...defaultArguments,
         octokit
       }
 
-      listReleases.mockReturnValueOnce([
-          {tag_name: defaultArguments.tagName, draft: true, id: '1'},
-        ]
-      )
+      listReleases.mockResolvedValueOnce(createListReleaseResponse({
+          data: [
+            createReleaseData({tag_name: defaultArguments.tagName, draft: true, id: 1}),
+          ]
+        }
+      ))
 
       await runAction(inputs);
 
@@ -309,9 +306,9 @@ describe('Delete tags and releases', () => {
 
     it('stops deleting releases when one fails to delete', async () => {
       const deleteRef = jest.fn()
-      const listReleases = jest.fn()
+      const listReleases = jest.fn<Octokit['rest']['repos']['listReleases']>()
       const deleteRelease = jest.fn()
-      const octokit = {
+      const octokit = createOctokit({
         rest: {
           git: {
             deleteRef
@@ -320,20 +317,21 @@ describe('Delete tags and releases', () => {
             listReleases, deleteRelease
           }
         }
-      }
-      const inputs = {
+      })
+        octokit.rest.repos.deleteRelease()
+      const inputs: WorkflowInput = {
         ...defaultArguments,
         octokit
       }
 
-      listReleases.mockReturnValueOnce([
-          {tag_name: defaultArguments.tagName, draft: false, id: '1'},
-          {tag_name: defaultArguments.tagName, draft: false, id: '2'},
-          {tag_name: defaultArguments.tagName, draft: false, id: '3'},
-        ]
-      )
-      deleteRelease.mockImplementation(({release_id}) => {
-        if (release_id === '1') {
+      listReleases.mockResolvedValueOnce(createListReleaseResponse({data: [
+          createReleaseData({tag_name: defaultArguments.tagName, draft: false, id: 1}),
+          createReleaseData({tag_name: defaultArguments.tagName, draft: false, id: 2}),
+          createReleaseData({tag_name: defaultArguments.tagName, draft: false, id: 3}),
+        ]}
+      ))
+      deleteRelease.mockImplementation(({release_id}: any) => {
+        if (release_id === 1) {
           return Promise.reject(new Error("Something bad happened!"))
         }
       })
@@ -348,12 +346,47 @@ describe('Delete tags and releases', () => {
         owner: defaultArguments.repo.owner,
         repo: defaultArguments.repo.repo
       })
-      expect(deleteRelease).toHaveBeenCalledWith({
-        release_id: '1'
-      });
-      expect(deleteRelease).not.toHaveBeenCalledWith({
-        release_id: '2'
-      });
+      expect(deleteRelease).toHaveBeenCalledWith(expect.objectContaining({
+        release_id: 1
+      }));
+      expect(deleteRelease).not.toHaveBeenCalledWith(expect.objectContaining({
+        release_id: 2
+      }));
     })
+
+
+    /**
+     * Create a new Octokit instance for testing. The typings here are very loose since Jest can't accurately model the
+     * complex types of Octokit.
+     *
+     * It's expected that calling this will look something like the following:
+     *
+     * ```js
+     * createOctokit({
+     *   rest: {
+     *     git: {
+     *       deleteRef
+     *     }
+     *   }
+     * })
+     * ```
+     *
+     * @param implementation The implementation of Octokit.
+     */
+    const createOctokit = (implementation: any= {}): Octokit => {
+      // We cheat here to get around Typescript's strict typing since this is a test. We only need a subset of
+      // Octokit to be mocked so provide that as implementation and forget the rest.
+      return implementation as Octokit
+    }
+
+    type ListReleaseResponse= Awaited<ReturnType<Octokit['rest']['repos']['listReleases']>>
+    type ReleaseData = ListReleaseResponse['data'][number];
+    const createReleaseData = (data: Partial<ReleaseData>): ReleaseData => {
+        return data as ReleaseData
+      }
+
+    const createListReleaseResponse = (data: Partial<ListReleaseResponse>): ListReleaseResponse => {
+      return data as ListReleaseResponse
+    }
   })
 });
