@@ -7762,9 +7762,6 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// utils.ts
-var createTagRef = (tagName) => `refs/tags/${tagName}`;
-
 // index.ts
 var import_github = __toESM(require_github());
 var import_core = __toESM(require_core());
@@ -7783,17 +7780,20 @@ function log(header, message, level = "default") {
   }
 }
 async function deleteTag(octokit, { owner, repo }, tagName) {
-  const ref = createTagRef(tagName);
   try {
     await octokit.rest.git.deleteRef({
       owner,
       repo,
-      ref
+      ref: `tags/${tagName}`
     });
     log("\u2705", `"${tagName}" deleted successfully!`);
   } catch (error2) {
     if (error2 instanceof Error) {
-      log("\u{1F336}", `failed to delete ref "${ref}" <- ${error2.message}`, "error");
+      log(
+        "\u{1F6D1}",
+        `failed to delete tag "${tagName}" <- ${error2.message}`,
+        "error"
+      );
       if (error2.message === "Reference does not exist") {
         log(
           "\u{1F615}",
@@ -7802,7 +7802,7 @@ async function deleteTag(octokit, { owner, repo }, tagName) {
         );
       } else {
         log(
-          "\u{1F336}",
+          "\u{1F6D1}",
           `An error occurred while deleting the tag "${tagName}"`,
           "error"
         );
@@ -7810,7 +7810,7 @@ async function deleteTag(octokit, { owner, repo }, tagName) {
       }
     } else {
       log(
-        "\u{1F336}",
+        "\u{1F6D1}",
         `An error occurred while deleting the tag "${tagName}"`,
         "error"
       );
@@ -7828,9 +7828,9 @@ async function deleteReleases(octokit, qualifiedRepo, tagName) {
     releaseIds = (releases.data ?? []).filter(({ tag_name, draft }) => tag_name === tagName && !draft).map(({ id }) => id);
   } catch (error2) {
     if (error2 instanceof Error) {
-      log("\u{1F336}", `failed to get list of releases <- ${error2.message}`, "error");
+      log("\u{1F6D1}", `failed to get list of releases <- ${error2.message}`, "error");
     } else {
-      log("\u{1F336}", `failed to get list of releases <- ${error2}`, "error");
+      log("\u{1F6D1}", `failed to get list of releases <- ${error2}`, "error");
     }
     process.exit(1);
     return;
@@ -7849,13 +7849,13 @@ async function deleteReleases(octokit, qualifiedRepo, tagName) {
     } catch (error2) {
       if (error2 instanceof Error) {
         log(
-          "\u{1F336}",
+          "\u{1F6D1}",
           `failed to delete release with id "${release_id}"  <- ${error2.message}`,
           "error"
         );
       } else {
         log(
-          "\u{1F336}",
+          "\u{1F6D1}",
           `failed to delete release with id "${release_id}"  <- ${error2}`,
           "error"
         );
@@ -7875,7 +7875,7 @@ function getRepo() {
     };
   } else if (inputRepo || inputOwner) {
     log(
-      "\u{1F336}",
+      "\u{1F6D1}",
       `a valid repo was not given. Expected "${inputRepoData}" to be in the form of "owner/repo"`
     );
     process.exit(1);
@@ -7898,7 +7898,7 @@ function getGitHubToken() {
     return tokenFromEnv;
   }
   log(
-    "\u{1F336}",
+    "\u{1F6D1}",
     'A valid GitHub token was not provided. Provide it as an input with the name "github_token"',
     "error"
   );
@@ -7928,7 +7928,7 @@ function getInputs() {
 }
 function validateInputField(isValid, invalidMessage) {
   if (!isValid) {
-    log("\u{1F336}", invalidMessage, "error");
+    log("\u{1F6D1}", invalidMessage, "error");
     process.exit(1);
   }
 }
