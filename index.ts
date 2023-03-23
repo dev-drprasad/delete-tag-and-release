@@ -74,7 +74,7 @@ async function deleteTag(
     log("✅", `"${tagName}" deleted successfully!`);
   } catch (error) {
     if (error instanceof Error) {
-      log("🌶", `failed to delete ref "${ref}" <- ${error.message}`, "error");
+      log("🛑", `failed to delete ref "${ref}" <- ${error.message}`, "error");
       if (error.message === "Reference does not exist") {
         log(
           "😕",
@@ -83,7 +83,7 @@ async function deleteTag(
         );
       } else {
         log(
-          "🌶",
+          "🛑",
           `An error occurred while deleting the tag "${tagName}"`,
           "error"
         );
@@ -91,7 +91,7 @@ async function deleteTag(
       }
     } else {
       log(
-        "🌶",
+        "🛑",
         `An error occurred while deleting the tag "${tagName}"`,
         "error"
       );
@@ -123,9 +123,9 @@ async function deleteReleases(
       .map(({ id }) => id);
   } catch (error) {
     if (error instanceof Error) {
-      log("🌶", `failed to get list of releases <- ${error.message}`, "error");
+      log("🛑", `failed to get list of releases <- ${error.message}`, "error");
     } else {
-      log("🌶", `failed to get list of releases <- ${error}`, "error");
+      log("🛑", `failed to get list of releases <- ${error}`, "error");
     }
     process.exit(1);
     return;
@@ -146,13 +146,13 @@ async function deleteReleases(
     } catch (error) {
       if (error instanceof Error) {
         log(
-          "🌶",
+          "🛑",
           `failed to delete release with id "${release_id}"  <- ${error.message}`,
           "error"
         );
       } else {
         log(
-          "🌶",
+          "🛑",
           `failed to delete release with id "${release_id}"  <- ${error}`,
           "error"
         );
@@ -179,7 +179,7 @@ function getRepo(): QualifiedRepo {
     };
   } else if (inputRepo || inputOwner) {
     log(
-      "🌶",
+      "🛑",
       `a valid repo was not given. Expected "${inputRepoData}" to be in the form of "owner/repo"`
     );
     process.exit(1);
@@ -207,7 +207,7 @@ function getGitHubToken(): string {
   }
 
   log(
-    "🌶",
+    "🛑",
     'A valid GitHub token was not provided. Provide it as an input with the name "github_token"',
     "error"
   );
@@ -253,7 +253,7 @@ export function getInputs(): WorkflowInput {
 
 function validateInputField(isValid: any, invalidMessage: string): void {
   if (!isValid) {
-    log("🌶", invalidMessage, "error");
+    log("🛑", invalidMessage, "error");
     process.exit(1);
   }
 }
