@@ -38,7 +38,22 @@ npm run package
 
 and committing the resulting changes that will be in the `dist/` folder.
 
+### Formatting and linting
+
+This project uses [ESLint](https://eslint.org/) for linting and [Prettier](https://prettier.io/) for source code formatting. You can run the lint checks by running:
+
+```shell
+npm run lint
+```
+
+If you have lint errors that are automatically fixable, you can fix those by running:
+
+```shell
+npm run lint:fix
+```
+
 ## Releasing
+
 Releases are done by creating a new tag and pushing that tag to the repo. A new
 release can be made via the following:
 
