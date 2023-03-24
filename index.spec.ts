@@ -219,7 +219,7 @@ describe("Delete tags and releases", () => {
       expect(deleteRef).toHaveBeenCalledWith({
         owner: "a-fake-user",
         repo: "a-fake-repo",
-        ref: "refs/tags/a-fake-tag",
+        ref: "tags/a-fake-tag",
       });
     });
 
@@ -267,7 +267,7 @@ describe("Delete tags and releases", () => {
       expect(deleteRef).toHaveBeenCalledWith({
         owner: "a-fake-user",
         repo: "a-fake-repo",
-        ref: "refs/tags/a-fake-tag",
+        ref: "tags/a-fake-tag",
       });
       expect(listReleases).toHaveBeenCalledTimes(1);
       expect(listReleases).toBeCalledWith({
@@ -330,7 +330,7 @@ describe("Delete tags and releases", () => {
       expect(deleteRef).toHaveBeenCalledWith({
         owner: "a-fake-user",
         repo: "a-fake-repo",
-        ref: "refs/tags/a-fake-tag",
+        ref: "tags/a-fake-tag",
       });
       expect(listReleases).toHaveBeenCalledTimes(1);
       expect(listReleases).toBeCalledWith({

@@ -1,4 +1,3 @@
-import { createTagRef } from "./utils";
 import { context, getOctokit } from "@actions/github";
 import {
   error,
@@ -56,25 +55,29 @@ function log(
  * @param octokit The Octokit instance to use for making API calls to GitHub.
  * @param owner The owner of the repo with the releases to delete.
  * @param repo The repo with the releases to delete.
- * @param tagName
+ * @param tagName The name of the tag to delete. This is expected to be solely the tag name, not the name of a
+ * git reference.
  */
 async function deleteTag(
   octokit: Octokit,
   { owner, repo }: QualifiedRepo,
   tagName: string
 ): Promise<void> {
-  const ref = createTagRef(tagName);
   try {
     await octokit.rest.git.deleteRef({
       owner,
       repo,
-      ref,
+      ref: `tags/${tagName}`,
     });
 
     log("✅", `"${tagName}" deleted successfully!`);
   } catch (error) {
     if (error instanceof Error) {
-      log("🛑", `failed to delete ref "${ref}" <- ${error.message}`, "error");
+      log(
+        "🛑",
+        `failed to delete tag "${tagName}" <- ${error.message}`,
+        "error"
+      );
       if (error.message === "Reference does not exist") {
         log(
           "😕",
