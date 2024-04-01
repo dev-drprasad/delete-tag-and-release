@@ -8,7 +8,7 @@ jobs:
     name: 'Tests (Node ${{ matrix.node_version }})'
     strategy:
       matrix:
-        node_version: [16, 18]
+        node_version: [20]
     runs-on: 'ubuntu-22.04'
     steps:
       - name: 'Checkout the current branch'
