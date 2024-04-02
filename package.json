@@ -1,6 +1,6 @@
 {
   "name": "delete-tag-and-release",
-  "version": "v0.2.1",
+  "version": "v1.1",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
@@ -9,7 +9,7 @@
   "keywords": [],
   "scripts": {
     "check:types": "tsc --noEmit",
-    "package": "npm run check:types && esbuild main.ts --bundle --platform=node --target=node16 --outfile=dist/main.js",
+    "package": "npm run check:types && esbuild main.ts --bundle --platform=node --target=node20 --outfile=dist/main.js",
     "test": "jest index.spec.ts",
     "lint": "npm run check:types && eslint .",
     "lint:fix": "eslint . --fix && npm run check:types"

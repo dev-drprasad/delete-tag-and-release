@@ -7867,7 +7867,7 @@ async function deleteReleases(octokit, qualifiedRepo, tagName) {
 }
 function getRepo() {
   const inputRepoData = (0, import_core.getInput)("repo");
-  const [inputOwner, inputRepo] = inputRepoData == null ? void 0 : inputRepoData.split("/");
+  const [inputOwner, inputRepo] = inputRepoData?.split("/");
   if (inputRepo && inputOwner) {
     return {
       repo: inputRepo,
@@ -7942,7 +7942,7 @@ async function run(inputs) {
     `an invalid value for shouldDeleteReleases was provided: ${shouldDeleteReleases}`
   );
   validateInputField(
-    (repo == null ? void 0 : repo.owner) && (repo == null ? void 0 : repo.repo),
+    repo?.owner && repo?.repo,
     "An invalid repo was provided!"
   );
   log("\u{1F3F7}", `given tag is "${tagName}"`);
