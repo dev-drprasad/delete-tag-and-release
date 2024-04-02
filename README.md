@@ -4,12 +4,12 @@
 Add following step to your workflow:
 
 ```yaml
-- uses: dev-drprasad/delete-tag-and-release@v1.2
+- uses: dev-drprasad/delete-tag-and-release@v1.1
   with:
     tag_name: v0.1.2 #(required) - The name of the tag to delete. This is expected to be solely the tag name, not the name of a git reference.
-    delete_release: true #(optional) default: true - also delete releases and their assets that are associated to the tag name
+    delete_release: true #(optional) default: true - also delete all releases and their assets that are associated to the tag name
     repo: <owner>/<repoName> #(optional) default: repo running this action - the target repository. 
-    github_token: ${{ secrets.GITHUB_TOKEN }} # (required) - a GitHub token with write access to the repo that needs to be modified
+    github_token: ${{ secrets.GITHUB_TOKEN }} # (required) - a GitHub token with write access to the repo where tags and releases will be searched and deleted
 ```
 
 ## Developing
