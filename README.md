@@ -1,3 +1,7 @@
+# --- WARNING - This GitHub Action will no longer be maintained ---
+The owner (dev-drprasad) and maintainer (thadguidry) do not see a need for continuing maintenance because the feature can now be handled directly with a line of code in your workflows with GitHub CLI [delete release](https://cli.github.com/manual/gh_release_delete).
+This repo thus will soon be archived.
+
 # GitHub Action: Delete tag and release
 
 ## Usage
